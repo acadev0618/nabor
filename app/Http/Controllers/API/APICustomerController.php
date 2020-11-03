@@ -40,7 +40,7 @@ class APICustomerController extends Controller
     }
 
     public function login(Request $request) {
-        $user = DB::select('select * from users where email = "'.$request->email.'" and password = "'.$request->password.'"');
+        $user = DB::select('select * from users where email = "'.$request->email.'" and password = "'.$request->password.'" and user_type = 0');
         if ($user) {
             return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success', 'data' => $user[0]]);
         } else {
@@ -60,6 +60,17 @@ class APICustomerController extends Controller
         }
     }
 
+    public function getWorkSchedule(Request $request) {
+        $id = $request->id;
+        $result = DB::select('SELECT * FROM work_time WHERE user_id = '.$id);
+
+        if ($result) {
+            return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success', 'data' => $result[0]]);
+        } else {
+            return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Not Exist']);
+        }
+    }
+
     public function sendRequest(Request $request)
     {
         $dt = new DateTime();
@@ -69,12 +80,14 @@ class APICustomerController extends Controller
             'provider' => $request->provider,
             'service' => $request->service,
             'contents' => $request->contents,
-            'created_date' => $currentdatetime
+            'created_date' => $currentdatetime,
+            'start_date' => $request->startdate,
+            'end_date' => $request->enddate,
         );
-        $service = DB::select('select * from services where customer = '.$request->customer.' and provider = '.$request->provider.' and (status = 0 or status = 1 or status = 2 or status = 4)');
-        if ($service) {
-            return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'You are already hiring the provider']);
-        }
+        // $service = DB::select('select * from services where customer = '.$request->customer.' and provider = '.$request->provider.' and (status = 0 or status = 1 or status = 2 or status = 4)');
+        // if ($service) {
+        //     return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'You are already hiring the provider']);
+        // }
         $result = DB::table('services')->insert($data);
         if(!$result) {
             return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Field to send request.']);
@@ -96,11 +109,10 @@ class APICustomerController extends Controller
                     LEFT JOIN users T2 ON T1.provider = T2.id
                     LEFT JOIN service_category T3 ON T1.service = T3.id 
                 WHERE
-                    is_history = 0 AND
                     (STATUS = 0 OR
                     STATUS = 1 OR
-                    STATUS = 2 OR
-                    STATUS = 3) AND
+                    STATUS = 2 ) AND
+                    is_history = 0 AND
                     customer = '.$id);
         
         return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success', 'data' => $requests]);
@@ -123,7 +135,7 @@ class APICustomerController extends Controller
                     LEFT JOIN users T2 ON T1.provider = T2.id
                     LEFT JOIN service_category T3 ON T1.service = T3.id 
                 WHERE
-                    T1.id = '.$id);
+                    T1.id = '.$id.' AND is_history = 0');
         
         if(!$requests) {
             return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Data is not exist.']);
@@ -138,11 +150,7 @@ class APICustomerController extends Controller
                 ->where(array('id' => $id))
                 ->update(array('is_history' => 1));
         
-        if($result != 1) {
-            return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Fail to delete.']);
-        } else {
-            return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success']);
-        }
+        return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success']);
     }
 
     public function getActiveRequests(Request $request) {
@@ -159,7 +167,7 @@ class APICustomerController extends Controller
                     LEFT JOIN service_category T3 ON T1.service = T3.id 
                 WHERE
                     is_history = 0 AND
-                    STATUS = 4 AND
+                    STATUS = 3 AND
                     customer = '.$id);
         
         return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success', 'data' => $requests]);
@@ -205,19 +213,15 @@ class APICustomerController extends Controller
                 ->where(array('id' => $user_id))
                 ->update(array('rate' => $rate));
             } else {
-                $rate = ($rate+$user[0]->rate)/2;
+                $rate = round(($rate+$user[0]->rate)/2, 1);
                 $result = DB::table('users')
                 ->where(array('id' => $user_id))
                 ->update(array('rate' => $rate));
             }
             $result = DB::table('services')
             ->where(array('id' => $id))
-            ->update(array('status' => 6, 'completed_date' => $currentdatetime));
-            if ($result == 1) {
-                return response()->json(['status' => '404', 'error_code' => '0', 'message' => 'Success']);
-            } else {
-                return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Faild to complete this service']);
-            }
+            ->update(array('status' => 5, 'completed_date' => $currentdatetime));
+            return response()->json(['status' => '404', 'error_code' => '0', 'message' => 'Success']);
         } else {
             return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'The user not exist.']);
         }
@@ -237,19 +241,15 @@ class APICustomerController extends Controller
                 ->where(array('id' => $user_id))
                 ->update(array('rate' => $rate));
             } else {
-                $rate = ($rate+$user[0]->rate)/2;
+                $rate = round(($rate+$user[0]->rate)/2, 1);
                 $result = DB::table('users')
                 ->where(array('id' => $user_id))
                 ->update(array('rate' => $rate));
             }
             $result = DB::table('services')
             ->where(array('id' => $id))
-            ->update(array('status' => 5, 'decliened_date' => $currentdatetime));
-            if ($result == 1) {
-                return response()->json(['status' => '404', 'error_code' => '0', 'message' => 'Success']);
-            } else {
-                return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Faild to declien this service']);
-            }
+            ->update(array('status' => 4, 'decliened_date' => $currentdatetime));
+            return response()->json(['status' => '404', 'error_code' => '0', 'message' => 'Success']);
         } else {
             return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'The user not exist.']);
         }
@@ -261,12 +261,8 @@ class APICustomerController extends Controller
         $id = $request->id;
         $result = DB::table('services')
             ->where(array('id' => $id))
-            ->update(array('status' => 6, 'completed_date' => $currentdatetime));
-        if ($result == 1) {
-            return response()->json(['status' => '404', 'error_code' => '0', 'message' => 'Success']);
-        } else {
-            return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Faild to complete this service']);
-        }
+            ->update(array('status' => 5, 'completed_date' => $currentdatetime));
+        return response()->json(['status' => '404', 'error_code' => '0', 'message' => 'Success']);
     }
 
     public function declienRequest(Request $request) {
@@ -275,12 +271,8 @@ class APICustomerController extends Controller
         $id = $request->id;
         $result = DB::table('services')
             ->where(array('id' => $id))
-            ->update(array('status' => 5, 'decliened_date' => $currentdatetime));
-        if ($result == 1) {
-            return response()->json(['status' => '404', 'error_code' => '0', 'message' => 'Success']);
-        } else {
-            return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Faild to complete this service']);
-        }
+            ->update(array('status' => 4, 'decliened_date' => $currentdatetime));
+        return response()->json(['status' => '404', 'error_code' => '0', 'message' => 'Success']);
     }
 
     public function getHistoryRequests(Request $request) {
@@ -297,8 +289,8 @@ class APICustomerController extends Controller
                     LEFT JOIN service_category T3 ON T1.service = T3.id 
                 WHERE
                     is_history = 0 AND
-                    (STATUS = 5 OR
-                    STATUS = 6) AND
+                    (STATUS = 4 OR
+                    STATUS = 5) AND
                     customer = '.$id);
         
         return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success', 'data' => $requests]);
@@ -336,11 +328,7 @@ class APICustomerController extends Controller
         ->where(array('id' => $id))
         ->update(array('is_history' => 1));
         
-        if($result != 1) {
-            return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Failed to delete.']);
-        } else {
-            return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success']);
-        }
+        return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success']);
     }
 
     public function editProfile(Request $request) {
@@ -369,7 +357,7 @@ class APICustomerController extends Controller
                 ->where($update_id)
                 ->update($data);
         $user = DB::select('select * from users where id = '.$request->id, [1]);
-        if ($result == 1) {
+        if ($user) {
             return response()->json(['status' => '200', 'error_code' => '0', 'message' => 'success', 'data' => $user[0]]);
         } else {
             return response()->json(['status' => '404', 'error_code' => '1', 'message' => 'Faild to edit this thread.']);

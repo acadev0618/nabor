@@ -29,11 +29,15 @@ Route::post('provider/updateStatus', 'API\APIProviderController@updateStatus');
 Route::post('provider/declienAndRateRequest', 'API\APIProviderController@declienAndRateRequest');
 Route::post('provider/declien', 'API\APIProviderController@declien');
 Route::post('provider/delete', 'API\APIProviderController@delete');
+Route::post('provider/editProfile', 'API\APIProviderController@editProfile');
+Route::post('provider/getWorkSchedule', 'API\APIProviderController@getWorkSchedule');
+Route::post('provider/updateWorkSchedule', 'API\APIProviderController@updateWorkSchedule');
 
 // ======================= Customer App =======================
 Route::post('customer/register', 'API\APICustomerController@register');
 Route::post('customer/login', 'API\APICustomerController@login');
 Route::get('customer/getDataforHome', 'API\APICustomerController@getDataforHome');
+Route::post('customer/getWorkSchedule', 'API\APICustomerController@getWorkSchedule');
 Route::post('customer/sendRequest', 'API\APICustomerController@sendRequest');
 Route::post('customer/getNewRequests', 'API\APICustomerController@getNewRequests');
 Route::post('customer/getNewRequest', 'API\APICustomerController@getNewRequest');
